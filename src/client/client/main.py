@@ -99,7 +99,7 @@ def main(args=None):
     while True:
         domain_id = get_domain_id()
         print(f"Client: Attempting connection with domain ID: {domain_id}")
-        rclpy.init(args=[f"ROS_DOMAIN_ID={domain_id}"])
+        rclpy.init(args=args, domain_id = domain_id)
         node = Client(sock)
 
         try:
