@@ -2,17 +2,14 @@ from __future__ import annotations
 import struct
 import rclpy
 from time import time_ns
-from pathlib import Path
 from socket import socket, SOCK_DGRAM, AF_INET
 from rclpy.node import Node
-from typing import Dict
+from typing import Dict, Tuple
 from os import environ
 from negotiator_interfaces.srv import Connection
 
 CYCLE_INTERVAL = 1
 CYCLE_TIMEOUT  = 30  # Number of cycles until we switch the ros domain ID.
-
-SERVER_HOST = ("127.0.0.1", 6969) #("10.0.0.2", 6969)
 
 def get_syn_packet(ros_domain_id: int) -> bytes:
     return b"NEGO" + struct.pack("!i", ros_domain_id)
@@ -27,10 +24,11 @@ def unpack_syn_packet(pkt: bytes) -> Dict[str, int]:
     }
 
 class Client(Node):
-    def __init__(self, client_sock: socket, ros_domain_id: int):
+    def __init__(self, client_sock: socket, ros_domain_id: int, server_addr: Tuple[str, int]):
         super().__init__("client")
 
         self.sock = client_sock
+        self.server_addr = server_addr
         self.is_connected = False
         self.cycles = 0
         self.srv_conn = self.create_service(
@@ -50,7 +48,7 @@ class Client(Node):
             self.exit(success=False)
 
         pkt = get_syn_packet(self.ros_domain_id)
-        self.sock.sendto(pkt, SERVER_HOST)
+        self.sock.sendto(pkt, self.server_addr)
         self.cycles += 1
 
     def exit(self, success=False):
@@ -83,13 +81,21 @@ class Client(Node):
 def main(args=None):
     sock = socket(AF_INET, SOCK_DGRAM)
     domain_id = -1
+    server_ip = None
+    server_port = -1
     try:
         domain_id = int(environ.get("ROS_DOMAIN_ID", None))
+        server_ip = str(environ.get("SERVER_IP"))
+        server_port = int(environ.get("SERVER_PORT", None))
+        if len(server_ip) == 0:
+            raise Exception()
     except Exception:
-        raise RuntimeError("ROS_DOMAIN_ID not known, please run this with `client_run.py`.")
+        raise RuntimeError("ROS_DOMAIN_ID or SERVER_IP not known, please run this with `client_run.py`.")
+
+    server_addr = (server_ip, server_port)
 
     rclpy.init(args=args)
-    node = Client(sock, int(domain_id))
+    node = Client(sock, int(domain_id), server_addr)
 
     try:
         rclpy.spin(node)

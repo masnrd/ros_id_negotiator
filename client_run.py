@@ -7,13 +7,10 @@ from time import time_ns
 from socket import socket, SOCK_DGRAM, AF_INET
 from typing import Dict
 
-CYCLE_INTERVAL = 1
-CYCLE_TIMEOUT = 300
 TIME_FRAME_NS = pow(10, 9) * 1  # ROS_DOMAIN_ID would be different each second (so if restarted, new ROS_DOMAIN_ID)
 MIN_ROS_DOMAIN_ID = 1
 MAX_ROS_DOMAIN_ID = 232
 
-SERVER_HOST = ("127.0.0.1", 6969) #("10.0.0.2", 6969)
 SYN_PACKET_SIZE = 8
 DATA_FILE = Path.home().joinpath(".droneconfig.sh")
 
@@ -33,14 +30,18 @@ def unpack_syn_packet(pkt: bytes) -> Dict[str, int]:
         "ros_domain_id": ros_domain_id
     }
 
-def main(args=None):
-    if args is None:
-        args = []
-    global domain_id
+def main():
     domain_id = -1
 
-    # 1. Set up socket
-    sock = socket(AF_INET, SOCK_DGRAM)
+    # Ensure these variables are in the environment first.
+    try:
+        server_ip = str(environ.get("SERVER_IP"))
+        server_port = int(environ.get("SERVER_PORT", None))
+        if len(server_ip) == 0:
+            raise Exception()
+    except Exception:
+        raise RuntimeError("SERVER_IP not known, please source `env.sh` before running this.")
+
 
     while True:
         # Generate domain ID

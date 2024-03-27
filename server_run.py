@@ -31,17 +31,25 @@ def unpack_syn_packet(pkt: bytes) -> Dict[str, int]:
         "ros_domain_id": ros_domain_id
     }
 
-def main(args=None):
-    if args is None:
-        args = []
-    global domain_id
+def main():
     domain_id = -1
+    server_ip = None
+    server_port = -1
+    try:
+        server_ip = str(environ.get("SERVER_IP"))
+        server_port = int(environ.get("SERVER_PORT", None))
+        if len(server_ip) == 0:
+            raise Exception()
+    except Exception:
+        raise RuntimeError("SERVER_IP or SERVER_PORT not known, please source `env.sh` before running this.")
+
+    server_addr = (server_ip, server_port)
 
     # 1. Set up socket
     sock = socket(AF_INET, SOCK_DGRAM)
 
     # 2. Listen until we get an attempted connection
-    sock.bind(SERVER_HOST)
+    sock.bind(server_addr)
 
     print("Server listening for connections...")
 
