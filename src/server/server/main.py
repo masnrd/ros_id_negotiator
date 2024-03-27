@@ -1,12 +1,15 @@
 from __future__ import annotations
 import rclpy
 from time import time_ns
+from pathlib import Path
 from rclpy.node import Node
 from rclpy.task import Future
 from negotiator_interfaces.srv import Connection
 
-CYCLE_INTERVAL = 1
-CYCLE_TIMEOUT = 300
+CYCLE_INTERVAL = 0.5
+CYCLE_TIMEOUT  = (1 / CYCLE_INTERVAL) * 30  # Number of seconds until we switch the ros domain ID.
+
+DATA_FILE = Path.home().joinpath(".droneconfig.sh")
 
 class Server(Node):
     def __init__(self):
