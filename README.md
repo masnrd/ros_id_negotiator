@@ -30,7 +30,7 @@ colcon build
 ### Server
 ```
 source env.sh
-ros2 run server main
+python3 server_run.py
 ```
 
 This would output the established `ROS2_DOMAIN_ID` after a connection is established.
@@ -38,7 +38,7 @@ This would output the established `ROS2_DOMAIN_ID` after a connection is establi
 ### Drone
 ```
 source env.sh
-ros2 run client main
+python3 client_run.py
 ```
 
 The `ROS_DOMAIN_ID` would be stored in the `~/.droneconfig.sh` shell script. To automatically set it for later scripts, simply add `source ~/.droneconfig.sh` to the next script in the pipeline.
