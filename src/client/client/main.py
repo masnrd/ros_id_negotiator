@@ -57,9 +57,10 @@ class Client(Node):
             print("0")
         else:
             print("1")
-        raise SystemExit
+        raise SystemExit()
 
     def srv_handle_connection(self, req: Connection.Request, res: Connection.Response):
+        self.log("Received connection.")
         has_error = False
         if self.is_connected:
             has_error = True

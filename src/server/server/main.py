@@ -1,11 +1,8 @@
 from __future__ import annotations
-import struct
 import rclpy
 from time import time_ns
-from socket import socket, SOCK_DGRAM, AF_INET
 from rclpy.node import Node
 from rclpy.task import Future
-from typing import Dict
 from negotiator_interfaces.srv import Connection
 
 CYCLE_INTERVAL = 1
@@ -30,6 +27,9 @@ class Server(Node):
             if self.cycles >= CYCLE_TIMEOUT:
                 self.log(f"Failed to connect to client after {CYCLE_TIMEOUT} cycles.")
                 self.exit(success=False)
+            elif (self.cycles * CYCLE_INTERVAL) % 2 == 0:
+                self.attempted_fut.cancel()
+                self.attempted_fut = self.attempt_connection()
             return
         response: Connection.Response = self.attempted_fut.result()
         if response.error:
@@ -44,23 +44,13 @@ class Server(Node):
             print("0")
         else:
             print("1")
-        raise SystemExit
+        raise SystemExit()
     
     def attempt_connection(self) -> Future:
         msg = Connection.Request()
         msg.timestamp_s = time_ns() // pow(10, 9)
         self.log(f"Attempting connection...")
         return self.cli_conn.call_async(msg)
-        
-    def srv_handle_connection(self, req: Connection.Request, res: Connection.Response):
-        has_error = False
-        if self.is_connected:
-            has_error = True
-            self.warn(f"Already connected.")
-        
-        res.timestamp_s = time_ns() // (10 ** 9)
-        res.error = has_error
-        return res
         
     def log(self, msg: str):
         # self.get_logger().info(f"Server: {msg}")
