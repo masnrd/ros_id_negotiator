@@ -1,0 +1,6 @@
+int64 timestamp_s
+int64 server_id     # SHOULD ALWAYS BE ZERO
+---
+int64 timestamp_s
+int64 client_id     # SHOULD BE THE DRONE'S ID
+bool error
