@@ -15,31 +15,29 @@ MIN_ROS_DOMAIN_ID = 1
 MAX_ROS_DOMAIN_ID = 232
 
 SERVER_HOST = ("127.0.0.1", 6969) #("10.0.0.2", 6969)
-SYN_PACKET_SIZE = 12
+SYN_PACKET_SIZE = 8
 
 def get_domain_id() -> int:
     val = time_ns() // TIME_FRAME_NS
     return (val % (MAX_ROS_DOMAIN_ID - MIN_ROS_DOMAIN_ID + 1)) + MIN_ROS_DOMAIN_ID
 
-def get_syn_packet(drone_id: int, ros_domain_id: int) -> bytes:
-    return b"NEGO" + struct.pack("!ii", drone_id, ros_domain_id)
+def get_syn_packet(ros_domain_id: int) -> bytes:
+    return b"NEGO" + struct.pack("!i", ros_domain_id)
 
 def unpack_syn_packet(pkt: bytes) -> Dict[str, int]:
     if pkt[0:4] != b"NEGO":
         raise RuntimeError("Received invalid packet.")
     
-    drone_id, ros_domain_id = struct.unpack("!ii", pkt[4:])
+    ros_domain_id = struct.unpack("!i", pkt[4:])[0]
     return {
-        "drone_id": drone_id,
         "ros_domain_id": ros_domain_id
     }
 
 class Server(Node):
-    def __init__(self, drone_id: int, ros_domain_id: int):
+    def __init__(self, ros_domain_id: int):
         super().__init__("server")
         
         self.domain_id = ros_domain_id
-        self.drone_id = drone_id
         self.cli_conn = self.create_client(
             Connection,
             "/negotiator/srv/conn"
@@ -63,10 +61,6 @@ class Server(Node):
             self.log(f"Failed to connect to client, client-side error.")
             domain_id = -1
             self.exit()
-        if response.client_id != self.drone_id:
-            self.log(f"Failed to connect to client: Client response was with ID {response.client_id}, initial registration was for ID {self.drone_id}.")
-            domain_id = -1
-            self.exit()
 
         self.exit()
         
@@ -77,21 +71,16 @@ class Server(Node):
     def attempt_connection(self) -> Future:
         msg = Connection.Request()
         msg.timestamp_s = time_ns() // pow(10, 9)
-        msg.server_id = 0
         self.log(f"Attempting connection...")
         return self.cli_conn.call_async(msg)
         
     def srv_handle_connection(self, req: Connection.Request, res: Connection.Response):
         has_error = False
-        if req.server_id != 0:
-            has_error = True
-            self.warn(f"Received connection request from invalid ID {req.server_id}.")
         if self.is_connected:
             has_error = True
             self.warn(f"Already connected.")
         
         res.timestamp_s = time_ns() // (10 ** 9)
-        res.client_id = self.drone_id
         res.error = has_error
         return res
         
@@ -102,6 +91,8 @@ class Server(Node):
         self.get_logger().warn(f"Server: {msg}")
 
 def main(args=None):
+    if args is None:
+        args = []
     global domain_id
     domain_id = -1
 
@@ -118,9 +109,8 @@ def main(args=None):
         print(f"Server: Received connection from {client_addr}.")
         data = unpack_syn_packet(client_msg)
         domain_id = data["ros_domain_id"]
-
-        rclpy.init(args=args, domain_id=domain_id)
-        node = Server(data["drone_id"], domain_id)
+        rclpy.init(args=[f"ROS_DOMAIN_ID={domain_id}"])
+        node = Server(domain_id)
         try:
             rclpy.spin(node)
         except SystemExit:

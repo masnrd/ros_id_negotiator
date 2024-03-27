@@ -23,16 +23,15 @@ def get_domain_id() -> int:
     val = time_ns() // TIME_FRAME_NS
     return (val % (MAX_ROS_DOMAIN_ID - MIN_ROS_DOMAIN_ID + 1)) + MIN_ROS_DOMAIN_ID
 
-def get_syn_packet(drone_id: int, ros_domain_id: int) -> bytes:
-    return b"NEGO" + struct.pack("!ii", drone_id, ros_domain_id)
+def get_syn_packet(ros_domain_id: int) -> bytes:
+    return b"NEGO" + struct.pack("!i", ros_domain_id)
 
 def unpack_syn_packet(pkt: bytes) -> Dict[str, int]:
     if pkt[0:4] != b"NEGO":
         raise RuntimeError("Received invalid packet.")
     
-    drone_id, ros_domain_id = struct.unpack("!ii", pkt[4:])
+    ros_domain_id = struct.unpack("!i", pkt[4:])[0]
     return {
-        "drone_id": drone_id,
         "ros_domain_id": ros_domain_id
     }
 
@@ -40,13 +39,7 @@ class Client(Node):
     def __init__(self, client_sock: socket):
         super().__init__("client")
         global domain_id
-        self.declare_parameter("droneId", -1)
-        drone_id = self.get_parameter("droneId").get_parameter_value().integer_value
-        if drone_id == -1:
-            print("Please run with droneId parameter.")
-            exit(1)
 
-        self.drone_id = drone_id
         self.sock = client_sock
         self.is_connected = False
         self.cycles = 0
@@ -71,7 +64,7 @@ class Client(Node):
             domain_id = -1
             self.exit()
 
-        pkt = get_syn_packet(self.drone_id, domain_id)
+        pkt = get_syn_packet(domain_id)
         self.sock.sendto(pkt, SERVER_HOST)
         self.cycles += 1
 
@@ -81,15 +74,11 @@ class Client(Node):
 
     def srv_handle_connection(self, req: Connection.Request, res: Connection.Response):
         has_error = False
-        if req.server_id != 0:
-            has_error = True
-            self.warn(f"Received connection request from invalid ID {req.server_id}.")
         if self.is_connected:
             has_error = True
             self.warn(f"Already connected.")
         
         res.timestamp_s = time_ns() // (10 ** 9)
-        res.client_id = self.drone_id
         res.error = has_error
         self.is_connected = True
         return res
@@ -110,7 +99,7 @@ def main(args=None):
     while True:
         domain_id = get_domain_id()
         print(f"Client: Attempting connection with domain ID: {domain_id}")
-        rclpy.init(args=args, domain_id=domain_id)
+        rclpy.init(args=[f"ROS_DOMAIN_ID={domain_id}"])
         node = Client(sock)
 
         try:
