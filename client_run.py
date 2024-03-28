@@ -24,6 +24,10 @@ def main():
         # Start node
         proc_env = environ.copy()
         proc_env["ROS_DOMAIN_ID"] = str(domain_id)
+        whitelist_file = environ.get("FASTRPS_DEFAULT_PROFILES_FILE", None)
+        if whitelist_file is None:
+            raise RuntimeError("Whitelist file not defined, please define an environment variable FASTRPS_DEFAULT_PROFILES_FILE.")
+        
         proc = subprocess.Popen(
             ["ros2", "run", "client", "main"],
             stdout=subprocess.PIPE,
@@ -38,6 +42,7 @@ def main():
             print(f"Established connection successfully.")
             DATA_FILE.touch(exist_ok=True)
             DATA_FILE.write_text(f"export ROS_DOMAIN_ID={domain_id}\n")
+            DATA_FILE.write_text(f"export FASTRPS_DEFAULT_PROFILES_FILE={whitelist_file}\n")
             exit(0)
 
 if __name__ == '__main__':

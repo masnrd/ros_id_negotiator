@@ -1,5 +1,4 @@
-source /opt/ros/iron/setup.bash
+source /opt/ros/foxy/setup.bash
 source ./install/setup.bash
 
-export SERVER_IP=127.0.0.1
-export SERVER_PORT=6969
+export FASTRPS_DEFAULT_PROFILES_FILE=/home/jetson/ros_id_negotiator/whitelist.xml

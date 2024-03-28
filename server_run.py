@@ -15,6 +15,9 @@ def get_domain_id() -> int:
 
 def main():
     domain_id = -1
+    whitelist_file = environ.get("FASTRPS_DEFAULT_PROFILES_FILE", None)
+    if whitelist_file is None:
+        raise RuntimeError("Whitelist file not defined, please define an environment variable FASTRPS_DEFAULT_PROFILES_FILE.")
 
     while True:
         domain_id = get_domain_id()
